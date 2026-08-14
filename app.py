@@ -1,3 +1,4 @@
+```python
 from flask import Flask, render_template, request, send_file, jsonify
 import yt_dlp
 import os
@@ -70,7 +71,7 @@ def youtube_options(client):
 
 
 # =========================================================
-# SÜREYİ DÜZENLE
+# SÜRE
 # =========================================================
 
 def format_duration(duration):
@@ -101,14 +102,13 @@ def format_duration(duration):
 
 
 # =========================================================
-# VİDEO BİLGİSİ AL
+# VİDEO BİLGİSİ
 # =========================================================
 
 def extract_video_info(link):
 
     errors = []
 
-    # İlk yöntem
     clients = [
         "android_vr",
         "web_embedded"
@@ -280,7 +280,36 @@ def home():
 
 
 # =========================================================
-# VIDEO BİLGİSİ
+# GOOGLE SEARCH CONSOLE DOĞRULAMA
+# =========================================================
+
+@app.route("/googlee4bd61a0bd60b5ec.html")
+def google_verification():
+
+    verification_file = os.path.join(
+        os.path.dirname(
+            os.path.abspath(__file__)
+        ),
+        "googlee4bd61a0bd60b5ec.html"
+    )
+
+    if not os.path.exists(
+        verification_file
+    ):
+
+        return (
+            "Google doğrulama dosyası bulunamadı.",
+            404
+        )
+
+    return send_file(
+        verification_file,
+        mimetype="text/html"
+    )
+
+
+# =========================================================
+# VIDEO BİLGİSİ API
 # =========================================================
 
 @app.route(
@@ -350,10 +379,6 @@ def video_info():
             )
         )
 
-        # =================================================
-        # KALİTELER
-        # =================================================
-
         qualities = set()
 
         for fmt in info.get(
@@ -392,10 +417,6 @@ def video_info():
             reverse=True
         )
 
-        # =================================================
-        # KALİTE YOKSA
-        # =================================================
-
         if not qualities:
 
             all_heights = []
@@ -432,13 +453,6 @@ def video_info():
             if qualities
             else 360
         )
-
-        print()
-        print("BAŞLIK:", title)
-        print("SÜRE:", duration)
-        print("KALİTELER:", qualities)
-        print("VARSAYILAN:", default_quality)
-        print()
 
         return jsonify({
 
@@ -506,10 +520,6 @@ def download():
                 400
             )
 
-        # =================================================
-        # ESKİ DOSYALARI TEMİZLE
-        # =================================================
-
         for file in glob.glob(
             os.path.join(
                 TEMP_FOLDER,
@@ -525,10 +535,6 @@ def download():
             except Exception:
                 pass
 
-        # =================================================
-        # İNDİR
-        # =================================================
-
         file = download_video(
             link,
             kalite
@@ -540,13 +546,6 @@ def download():
                 "Video indirildi fakat dosya bulunamadı.",
                 500
             )
-
-        print()
-        print("=" * 55)
-        print("İNDİRME BAŞARILI")
-        print(file)
-        print("=" * 55)
-        print()
 
         return send_file(
 
@@ -612,12 +611,6 @@ if __name__ == "__main__":
 
     print()
 
-    print(
-        "http://127.0.0.1:5000"
-    )
-
-    print()
-
     app.run(
         host="0.0.0.0",
         port=int(
@@ -628,8 +621,4 @@ if __name__ == "__main__":
         ),
         debug=False
     )
-    app.run(
-        host="127.0.0.1",
-        port=5000,
-        debug=True
-    )
+```
