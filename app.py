@@ -2,8 +2,8 @@ from flask import Flask, render_template, request, send_file, jsonify
 import yt_dlp
 import os
 import tempfile
-import shutil
 import glob
+import imageio_ffmpeg
 
 app = Flask(__name__)
 
@@ -20,36 +20,18 @@ os.makedirs(TEMP_FOLDER, exist_ok=True)
 
 
 # =========================================================
-# FFMPEG BUL
+# FFMPEG
 # =========================================================
 
 def find_ffmpeg():
+    try:
+        ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
 
-    ffmpeg = shutil.which("ffmpeg")
+        if ffmpeg and os.path.exists(ffmpeg):
+            return ffmpeg
 
-    if ffmpeg:
-        return ffmpeg
-
-    downloads = os.path.join(
-        os.path.expanduser("~"),
-        "Downloads"
-    )
-
-    if os.path.exists(downloads):
-
-        for root, dirs, files in os.walk(downloads):
-
-            if "ffmpeg.exe" in files:
-                return root
-
-    project = os.path.dirname(
-        os.path.abspath(__file__)
-    )
-
-    for root, dirs, files in os.walk(project):
-
-        if "ffmpeg.exe" in files:
-            return root
+    except Exception as e:
+        print("FFmpeg bulunamadı:", e)
 
     return None
 
@@ -61,39 +43,228 @@ FFMPEG_PATH = find_ffmpeg()
 # YOUTUBE AYARLARI
 # =========================================================
 
-YOUTUBE_OPTIONS = {
-
-    "js_runtimes": {
-        "node": {}
-    },
-
-    "extractor_args": {
-        "youtube": {
-            "player_client": [
-                "android_vr"
-            ]
-        }
-    },
-
+BASE_OPTIONS = {
     "noplaylist": True,
-
     "quiet": False,
-
     "no_warnings": False,
-
-    "retries": 5,
-
-    "fragment_retries": 5,
-
-    "http_headers": {
-        "User-Agent": (
-            "com.google.android.youtube/"
-            "21.26.36 "
-            "(Linux; U; Android 11) "
-            "gzip"
-        )
-    }
+    "retries": 3,
+    "fragment_retries": 3,
 }
+
+
+# =========================================================
+# YOUTUBE SEÇENEKLERİ
+# =========================================================
+
+def youtube_options(client):
+
+    options = BASE_OPTIONS.copy()
+
+    options["extractor_args"] = {
+        "youtube": {
+            "player_client": [client]
+        }
+    }
+
+    return options
+
+
+# =========================================================
+# SÜREYİ DÜZENLE
+# =========================================================
+
+def format_duration(duration):
+
+    if not duration:
+        return ""
+
+    try:
+        total = int(duration)
+    except (ValueError, TypeError):
+        return ""
+
+    hours = total // 3600
+    minutes = (total % 3600) // 60
+    seconds = total % 60
+
+    if hours:
+        return (
+            f"{hours}:"
+            f"{minutes:02d}:"
+            f"{seconds:02d}"
+        )
+
+    return (
+        f"{minutes}:"
+        f"{seconds:02d}"
+    )
+
+
+# =========================================================
+# VİDEO BİLGİSİ AL
+# =========================================================
+
+def extract_video_info(link):
+
+    errors = []
+
+    # İlk yöntem
+    clients = [
+        "android_vr",
+        "web_embedded"
+    ]
+
+    for client in clients:
+
+        try:
+
+            print()
+            print("=" * 55)
+            print("VIDEO BİLGİSİ")
+            print("Client:", client)
+            print("URL:", link)
+            print("=" * 55)
+
+            options = youtube_options(client)
+
+            options["skip_download"] = True
+
+            with yt_dlp.YoutubeDL(options) as ydl:
+
+                info = ydl.extract_info(
+                    link,
+                    download=False
+                )
+
+            if info:
+                return info
+
+        except Exception as e:
+
+            print(
+                f"{client} başarısız:",
+                str(e)
+            )
+
+            errors.append(
+                f"{client}: {str(e)}"
+            )
+
+    raise Exception(
+        "Video bilgisi alınamadı.\n\n"
+        + "\n".join(errors)
+    )
+
+
+# =========================================================
+# VİDEO İNDİR
+# =========================================================
+
+def download_video(link, kalite):
+
+    if not FFMPEG_PATH:
+
+        raise Exception(
+            "FFmpeg bulunamadı."
+        )
+
+    try:
+        limit = int(kalite)
+    except (ValueError, TypeError):
+        limit = 720
+
+    output = os.path.join(
+        TEMP_FOLDER,
+        "%(title)s_%(id)s.%(ext)s"
+    )
+
+    format_secimi = (
+        f"bestvideo[height<={limit}]"
+        f"+bestaudio/"
+        f"best[height<={limit}]/"
+        f"best"
+    )
+
+    errors = []
+
+    clients = [
+        "android_vr",
+        "web_embedded"
+    ]
+
+    for client in clients:
+
+        try:
+
+            print()
+            print("=" * 55)
+            print("VİDEO İNDİRİLİYOR")
+            print("Client:", client)
+            print("Kalite:", str(limit) + "p")
+            print("FFmpeg:", FFMPEG_PATH)
+            print("=" * 55)
+
+            options = youtube_options(client)
+
+            options.update({
+
+                "format": format_secimi,
+
+                "outtmpl": output,
+
+                "ffmpeg_location": FFMPEG_PATH,
+
+                "merge_output_format": "mp4"
+
+            })
+
+            with yt_dlp.YoutubeDL(options) as ydl:
+
+                ydl.download([
+                    link
+                ])
+
+            files = [
+
+                file
+
+                for file in glob.glob(
+                    os.path.join(
+                        TEMP_FOLDER,
+                        "*"
+                    )
+                )
+
+                if os.path.isfile(file)
+
+            ]
+
+            if not files:
+
+                raise Exception(
+                    "İndirilen dosya bulunamadı."
+                )
+
+            return max(
+                files,
+                key=os.path.getmtime
+            )
+
+        except Exception as e:
+
+            print(
+                f"{client} indirme başarısız:",
+                str(e)
+            )
+
+            errors.append(
+                f"{client}: {str(e)}"
+            )
+
+    raise Exception(
+        "Video indirilemedi.\n\n"
+        + "\n".join(errors)
+    )
 
 
 # =========================================================
@@ -109,7 +280,7 @@ def home():
 
 
 # =========================================================
-# VIDEO BİLGİSİ + GERÇEK KALİTELER
+# VIDEO BİLGİSİ
 # =========================================================
 
 @app.route(
@@ -127,10 +298,13 @@ def video_info():
         if not data:
 
             return jsonify({
-                "success": False,
-                "error": "Geçersiz istek."
-            }), 400
 
+                "success": False,
+
+                "error":
+                    "Geçersiz istek."
+
+            }), 400
 
         link = str(
             data.get(
@@ -139,43 +313,20 @@ def video_info():
             )
         ).strip()
 
-
         if not link:
 
             return jsonify({
+
                 "success": False,
-                "error": "Video linki girilmedi."
+
+                "error":
+                    "Video linki girilmedi."
+
             }), 400
 
-
-        print()
-        print("=" * 50)
-        print("VIDEO BİLGİSİ ALINIYOR")
-        print("=" * 50)
-        print(link)
-        print()
-
-
-        options = YOUTUBE_OPTIONS.copy()
-
-        options.update({
-            "skip_download": True
-        })
-
-
-        with yt_dlp.YoutubeDL(
-            options
-        ) as ydl:
-
-            info = ydl.extract_info(
-                link,
-                download=False
-            )
-
-
-        # =================================================
-        # TEMEL BİLGİLER
-        # =================================================
+        info = extract_video_info(
+            link
+        )
 
         title = info.get(
             "title",
@@ -192,54 +343,18 @@ def video_info():
             ""
         )
 
-        duration = info.get(
-            "duration",
-            0
+        duration = format_duration(
+            info.get(
+                "duration",
+                0
+            )
         )
 
-
         # =================================================
-        # SÜRE
-        # =================================================
-
-        duration_text = ""
-
-        if duration:
-
-            total = int(duration)
-
-            hours = total // 3600
-
-            minutes = (
-                total % 3600
-            ) // 60
-
-            seconds = (
-                total % 60
-            )
-
-            if hours:
-
-                duration_text = (
-                    f"{hours}:"
-                    f"{minutes:02d}:"
-                    f"{seconds:02d}"
-                )
-
-            else:
-
-                duration_text = (
-                    f"{minutes}:"
-                    f"{seconds:02d}"
-                )
-
-
-        # =================================================
-        # GERÇEK MEVCUT KALİTELERİ BUL
+        # KALİTELER
         # =================================================
 
         qualities = set()
-
 
         for fmt in info.get(
             "formats",
@@ -253,21 +368,14 @@ def video_info():
             if not height:
                 continue
 
-
             try:
-
                 height = int(height)
-
             except (
                 ValueError,
                 TypeError
             ):
-
                 continue
 
-
-            # Sadece bizim desteklediğimiz
-            # kalite seçenekleri
             if height in [
                 360,
                 480,
@@ -279,21 +387,17 @@ def video_info():
                     height
                 )
 
-
-        # Büyükten küçüğe sırala
         qualities = sorted(
             qualities,
             reverse=True
         )
 
-
         # =================================================
-        # HİÇBİR KALİTE BULUNAMAZSA
+        # KALİTE YOKSA
         # =================================================
 
         if not qualities:
 
-            # En yüksek mevcut çözünürlüğü bul
             all_heights = []
 
             for fmt in info.get(
@@ -308,64 +412,33 @@ def video_info():
                 if height:
 
                     try:
-
                         all_heights.append(
                             int(height)
                         )
-
                     except (
                         ValueError,
                         TypeError
                     ):
-
                         pass
-
 
             if all_heights:
 
-                en_yuksek = max(
-                    all_heights
-                )
-
-                # 360p altındaysa yine
-                # en azından mevcut değeri göster
                 qualities = [
-                    en_yuksek
+                    max(all_heights)
                 ]
 
-
-        # =================================================
-        # EN YÜKSEK KALİTE
-        # =================================================
-
-        if qualities:
-
-            default_quality = max(
-                qualities
-            )
-
-        else:
-
-            default_quality = 360
-
-
-        print("Başlık:", title)
-        print("Süre:", duration_text)
-        print(
-            "Mevcut kaliteler:",
-            qualities
+        default_quality = (
+            max(qualities)
+            if qualities
+            else 360
         )
-        print(
-            "Varsayılan:",
-            default_quality
-        )
-        print("BAŞARILI")
+
         print()
-
-
-        # =================================================
-        # JSON
-        # =================================================
+        print("BAŞLIK:", title)
+        print("SÜRE:", duration)
+        print("KALİTELER:", qualities)
+        print("VARSAYILAN:", default_quality)
+        print()
 
         return jsonify({
 
@@ -377,7 +450,7 @@ def video_info():
 
             "uploader": uploader,
 
-            "duration": duration_text,
+            "duration": duration,
 
             "qualities": qualities,
 
@@ -386,16 +459,14 @@ def video_info():
 
         })
 
-
     except Exception as e:
 
         print()
-        print("=" * 50)
+        print("=" * 55)
         print("VIDEO BİLGİSİ HATASI")
-        print("=" * 50)
+        print("=" * 55)
         print(e)
         print()
-
 
         return jsonify({
 
@@ -407,7 +478,7 @@ def video_info():
 
 
 # =========================================================
-# VIDEO İNDİR
+# DOWNLOAD
 # =========================================================
 
 @app.route(
@@ -423,12 +494,10 @@ def download():
             ""
         ).strip()
 
-
         kalite = request.form.get(
             "kalite",
             "720"
         ).strip()
-
 
         if not link:
 
@@ -436,40 +505,6 @@ def download():
                 "Video linki girilmedi.",
                 400
             )
-
-
-        if not FFMPEG_PATH:
-
-            return (
-                "FFmpeg bulunamadı.",
-                500
-            )
-
-
-        # =================================================
-        # KALİTE
-        # =================================================
-
-        try:
-
-            limit = int(kalite)
-
-        except (
-            ValueError,
-            TypeError
-        ):
-
-            limit = 720
-
-
-        print()
-        print("=" * 50)
-        print("İNDİRME BAŞLIYOR")
-        print("=" * 50)
-        print("Kalite:", str(limit) + "p")
-        print("FFmpeg:", FFMPEG_PATH)
-        print()
-
 
         # =================================================
         # ESKİ DOSYALARI TEMİZLE
@@ -485,125 +520,33 @@ def download():
             try:
 
                 if os.path.isfile(file):
-
                     os.remove(file)
 
             except Exception:
-
                 pass
-
-
-        # =================================================
-        # DOSYA
-        # =================================================
-
-        output = os.path.join(
-
-            TEMP_FOLDER,
-
-            "%(title)s_%(id)s.%(ext)s"
-
-        )
-
-
-        # =================================================
-        # FORMAT
-        # =================================================
-
-        format_secimi = (
-
-            f"bestvideo[height<={limit}]"
-            f"+bestaudio/"
-
-            f"best[height<={limit}]/"
-
-            "best"
-
-        )
-
-
-        # =================================================
-        # YT-DLP
-        # =================================================
-
-        options = YOUTUBE_OPTIONS.copy()
-
-        options.update({
-
-            "format":
-                format_secimi,
-
-            "outtmpl":
-                output,
-
-            "ffmpeg_location":
-                FFMPEG_PATH,
-
-            "merge_output_format":
-                "mp4"
-
-        })
-
 
         # =================================================
         # İNDİR
         # =================================================
 
-        with yt_dlp.YoutubeDL(
-            options
-        ) as ydl:
+        file = download_video(
+            link,
+            kalite
+        )
 
-            ydl.download([
-                link
-            ])
-
-
-        # =================================================
-        # DOSYAYI BUL
-        # =================================================
-
-        files = [
-
-            file
-
-            for file in glob.glob(
-                os.path.join(
-                    TEMP_FOLDER,
-                    "*"
-                )
-            )
-
-            if os.path.isfile(file)
-
-        ]
-
-
-        if not files:
+        if not file or not os.path.exists(file):
 
             return (
-                "Video indirildi fakat "
-                "dosya bulunamadı.",
+                "Video indirildi fakat dosya bulunamadı.",
                 500
             )
 
-
-        file = max(
-            files,
-            key=os.path.getmtime
-        )
-
-
         print()
-        print("=" * 50)
+        print("=" * 55)
         print("İNDİRME BAŞARILI")
         print(file)
-        print("=" * 50)
+        print("=" * 55)
         print()
-
-
-        # =================================================
-        # DOSYAYI GÖNDER
-        # =================================================
 
         return send_file(
 
@@ -619,16 +562,14 @@ def download():
 
         )
 
-
     except Exception as e:
 
         print()
-        print("=" * 50)
+        print("=" * 55)
         print("İNDİRME HATASI")
-        print("=" * 50)
+        print("=" * 55)
         print(e)
         print()
-
 
         return (
 
@@ -647,9 +588,9 @@ def download():
 if __name__ == "__main__":
 
     print()
-    print("=" * 50)
-    print("             zdDownloader")
-    print("=" * 50)
+    print("=" * 55)
+    print("                 zdDownloader")
+    print("=" * 55)
     print()
 
     print(
@@ -659,7 +600,7 @@ if __name__ == "__main__":
 
     print(
         "yt-dlp:",
-        yt_dlp.__file__
+        yt_dlp.version.__version__
     )
 
     print(
@@ -677,6 +618,16 @@ if __name__ == "__main__":
 
     print()
 
+    app.run(
+        host="0.0.0.0",
+        port=int(
+            os.environ.get(
+                "PORT",
+                5000
+            )
+        ),
+        debug=False
+    )
     app.run(
         host="127.0.0.1",
         port=5000,
