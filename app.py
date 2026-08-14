@@ -1,4 +1,3 @@
-```python
 from flask import Flask, render_template, request, send_file, jsonify
 import yt_dlp
 import os
