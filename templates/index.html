@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="tr">
 
@@ -93,9 +94,13 @@
 
         .card {
             position: relative;
+
             background: rgba(15, 18, 31, 0.88);
+
             border: 1px solid rgba(255,255,255,0.08);
+
             border-radius: 24px;
+
             padding: 30px;
 
             box-shadow:
@@ -124,14 +129,19 @@
         .link-input {
             width: 100%;
             height: 58px;
+
             padding: 0 20px;
 
             border-radius: 14px;
+
             border: 1px solid #292f43;
+
             outline: none;
 
             background: #0a0e19;
+
             color: white;
+
             font-size: 15px;
 
             transition: 0.25s;
@@ -158,61 +168,43 @@
             flex: 1;
 
             height: 55px;
+
             padding: 0 16px;
 
             border-radius: 13px;
+
             border: 1px solid #292f43;
 
             background: #0a0e19;
+
             color: white;
 
             outline: none;
 
             font-size: 14px;
-            cursor: pointer;
 
-            transition:
-                border-color 0.25s,
-                box-shadow 0.25s,
-                opacity 0.25s;
+            cursor: pointer;
         }
 
         .quality-select:focus {
             border-color: #7068ff;
-
-            box-shadow:
-                0 0 0 3px rgba(112,104,255,0.12);
-        }
-
-        /* Kalite kutusu aktif olduğunda */
-        .quality-select:not(:disabled) {
-            border-color: #4540a8;
-
-            box-shadow:
-                0 0 0 2px rgba(117,108,255,0.08);
-        }
-
-        /* Kalite kutusu pasifken */
-        .quality-select:disabled {
-            opacity: 0.55;
-            cursor: not-allowed;
-        }
-
-        .quality-select option {
-            background: #0a0e19;
-            color: white;
         }
 
         .check-button,
         .download-button {
+
             width: 100%;
+
             height: 55px;
 
             border: none;
+
             border-radius: 13px;
 
             color: white;
+
             font-size: 15px;
+
             font-weight: 700;
 
             cursor: pointer;
@@ -224,6 +216,7 @@
         }
 
         .check-button {
+
             background:
                 linear-gradient(
                     135deg,
@@ -236,6 +229,7 @@
         }
 
         .download-button {
+
             margin-top: 12px;
 
             background:
@@ -266,65 +260,84 @@
         }
 
         .preview {
+
             display: none;
 
             margin-top: 20px;
+
             padding: 14px;
 
             border-radius: 16px;
 
             background: #0a0e19;
+
             border: 1px solid #242b3d;
 
             text-align: left;
         }
 
         .preview-content {
+
             display: flex;
+
             align-items: center;
+
             gap: 16px;
         }
 
         .thumbnail {
+
             width: 170px;
             height: 96px;
 
             object-fit: cover;
+
             border-radius: 11px;
 
             background: #151a29;
+
             flex-shrink: 0;
         }
 
         .video-title {
+
             font-size: 15px;
+
             font-weight: 700;
 
             line-height: 1.45;
+
             margin-bottom: 8px;
 
             display: -webkit-box;
+
             -webkit-line-clamp: 2;
+
             -webkit-box-orient: vertical;
 
             overflow: hidden;
         }
 
         .video-info {
+
             font-size: 13px;
+
             color: #70798f;
         }
 
         .loading {
+
             display: none;
 
             margin-top: 20px;
 
             color: #858da3;
+
             font-size: 14px;
         }
 
         .spinner {
+
             width: 25px;
             height: 25px;
 
@@ -333,6 +346,7 @@
             border-radius: 50%;
 
             border: 3px solid #292f43;
+
             border-top-color: #756cff;
 
             animation: spin 0.8s linear infinite;
@@ -347,14 +361,17 @@
         }
 
         .error {
+
             display: none;
 
             margin-top: 15px;
+
             padding: 12px 14px;
 
             border-radius: 10px;
 
             background: rgba(255,70,90,0.08);
+
             border: 1px solid rgba(255,70,90,0.15);
 
             color: #ff8795;
@@ -365,6 +382,7 @@
         }
 
         .features {
+
             display: grid;
 
             grid-template-columns:
@@ -376,6 +394,7 @@
         }
 
         .feature {
+
             padding: 14px;
 
             border-radius: 13px;
@@ -390,20 +409,101 @@
         }
 
         .feature-icon {
+
             font-size: 20px;
+
             margin-bottom: 6px;
         }
 
         .feature-title {
+
             color: #b7bdca;
+
             font-weight: 700;
+
             margin-bottom: 3px;
         }
 
+        /* =========================================
+           DESTEKLENEN PLATFORMLAR
+        ========================================= */
+
+        .platforms {
+
+            margin-top: 18px;
+
+            padding: 20px;
+
+            border-radius: 16px;
+
+            background: rgba(15,18,31,0.6);
+
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .platforms-title {
+
+            font-size: 14px;
+
+            font-weight: 700;
+
+            color: #b7bdca;
+
+            margin-bottom: 6px;
+        }
+
+        .platforms-description {
+
+            font-size: 12px;
+
+            color: #6f778b;
+
+            margin-bottom: 15px;
+        }
+
+        .platform-list {
+
+            display: flex;
+
+            justify-content: center;
+
+            flex-wrap: wrap;
+
+            gap: 9px;
+        }
+
+        .platform {
+
+            padding: 9px 13px;
+
+            border-radius: 10px;
+
+            background: #0a0e19;
+
+            border: 1px solid #242b3d;
+
+            color: #aeb5c5;
+
+            font-size: 12px;
+
+            font-weight: 600;
+
+            transition: 0.2s;
+        }
+
+        .platform:hover {
+
+            border-color: #7068ff;
+
+            transform: translateY(-1px);
+        }
+
         .footer {
+
             margin-top: 25px;
 
             color: #454d60;
+
             font-size: 12px;
         }
 
@@ -446,6 +546,14 @@
 
             .features {
                 grid-template-columns: 1fr;
+            }
+
+            .platform-list {
+                gap: 7px;
+            }
+
+            .platform {
+                padding: 8px 11px;
             }
 
         }
@@ -645,6 +753,43 @@
 
                 <div>
                     Her cihazda çalışır
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- =========================================
+             DESTEKLENEN PLATFORMLAR
+        ========================================== -->
+
+        <div class="platforms">
+
+            <div class="platforms-title">
+                Desteklenen Platformlar
+            </div>
+
+            <div class="platforms-description">
+                Instagram, TikTok, X (Twitter) ve Facebook videolarını kolayca indir.
+            </div>
+
+            <div class="platform-list">
+
+                <div class="platform">
+                    📸 Instagram
+                </div>
+
+                <div class="platform">
+                    🎵 TikTok
+                </div>
+
+                <div class="platform">
+                    𝕏 X (Twitter)
+                </div>
+
+                <div class="platform">
+                    🔵 Facebook
                 </div>
 
             </div>
@@ -1102,30 +1247,6 @@ document.getElementById(
 
 
 /* =========================================
-   KALİTE SEÇİMİ
-========================================= */
-
-document.getElementById(
-    "kalite"
-).addEventListener(
-    "change",
-    function() {
-
-        if (!this.disabled) {
-
-            this.style.borderColor =
-                "#756cff";
-
-            this.style.boxShadow =
-                "0 0 0 3px rgba(117,108,255,0.12)";
-
-        }
-
-    }
-);
-
-
-/* =========================================
    YENİ LİNK GİRİLİNCE SIFIRLA
 ========================================= */
 
@@ -1203,30 +1324,23 @@ document.getElementById(
             "none";
 
 
-        /* Kalite kutusunun stilini sıfırla */
-
-        kalite.style.borderColor =
-            "";
-
-        kalite.style.boxShadow =
-            "";
-
-
-        /* Kaliteleri temizle */
-
         kalite.innerHTML = "";
+
 
         const option =
             document.createElement(
                 "option"
             );
 
+
         option.textContent =
             "Önce videoyu kontrol et";
+
 
         kalite.appendChild(
             option
         );
+
 
         kalite.disabled =
             true;
@@ -1235,6 +1349,12 @@ document.getElementById(
 );
 
 </script>
+
+</body>
+
+</html>
+```
+
 
 </body>
 
