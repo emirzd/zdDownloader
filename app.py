@@ -4,11 +4,12 @@ import os
 import tempfile
 import shutil
 import glob
+from datetime import datetime
 
 app = Flask(__name__)
 
 # =========================================================
-# AYARLAR
+# TEMEL AYARLAR
 # =========================================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -27,20 +28,18 @@ os.makedirs(TEMP_FOLDER, exist_ok=True)
 
 def find_ffmpeg():
 
+    # Render / sistem PATH
     ffmpeg = shutil.which("ffmpeg")
 
     if ffmpeg:
         return ffmpeg
 
+    # Proje klasöründe ara
     for root, dirs, files in os.walk(BASE_DIR):
 
         for filename in files:
 
-            if filename.lower() in [
-                "ffmpeg",
-                "ffmpeg.exe"
-            ]:
-
+            if filename.lower() == "ffmpeg.exe":
                 return root
 
     return None
@@ -50,19 +49,14 @@ FFMPEG_PATH = find_ffmpeg()
 
 
 # =========================================================
-# YT-DLP AYARLARI
+# GENEL YT-DLP AYARLARI
 # =========================================================
 
-YOUTUBE_OPTIONS = {
-
+YTDLP_OPTIONS = {
     "noplaylist": True,
-
     "quiet": False,
-
     "no_warnings": False,
-
     "retries": 5,
-
     "fragment_retries": 5
 }
 
@@ -78,18 +72,71 @@ def home():
 
 
 # =========================================================
+# ROBOTS.TXT
+# =========================================================
+
+@app.route("/robots.txt")
+def robots_txt():
+
+    robots = """User-agent: *
+Allow: /
+
+Sitemap: https://zddownloader.onrender.com/sitemap.xml
+"""
+
+    response = Response(
+        robots,
+        status=200,
+        mimetype="text/plain"
+    )
+
+    # Google'ın yanlış cache kullanmasını azalt
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+
+    return response
+
+
+# =========================================================
+# SITEMAP.XML
+# =========================================================
+
+@app.route("/sitemap.xml")
+def sitemap():
+
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>https://zddownloader.onrender.com/</loc>
+        <changefreq>weekly</changefreq>
+        <priority>1.0</priority>
+    </url>
+</urlset>
+"""
+
+    return Response(
+        xml,
+        status=200,
+        mimetype="application/xml"
+    )
+
+
+# =========================================================
 # GOOGLE SEARCH CONSOLE DOĞRULAMA
 # =========================================================
 
 @app.route("/googlee4bd61a0bd60b5ec.html")
 def google_verification():
 
-    verification_file = os.path.join(
+    filename = "googlee4bd61a0bd60b5ec.html"
+
+    filepath = os.path.join(
         BASE_DIR,
-        "googlee4bd61a0bd60b5ec.html"
+        filename
     )
 
-    if not os.path.isfile(verification_file):
+    if not os.path.isfile(filepath):
 
         return (
             "Google doğrulama dosyası bulunamadı.",
@@ -97,7 +144,7 @@ def google_verification():
         )
 
     with open(
-        verification_file,
+        filepath,
         "r",
         encoding="utf-8"
     ) as file:
@@ -106,25 +153,8 @@ def google_verification():
 
     return Response(
         content,
+        status=200,
         mimetype="text/html"
-    )
-
-
-# =========================================================
-# ROBOTS.TXT
-# =========================================================
-
-@app.route("/robots.txt")
-def robots():
-
-    content = (
-        "User-agent: *\n"
-        "Allow: /\n"
-    )
-
-    return Response(
-        content,
-        mimetype="text/plain"
     )
 
 
@@ -165,14 +195,18 @@ def video_info():
                 "error": "Video linki girilmedi."
             }), 400
 
-        print("=" * 50)
-        print("VIDEO BİLGİSİ ALINIYOR")
+        print()
+        print("=" * 60)
+        print("VIDEO BİLGİSİ")
+        print("=" * 60)
         print(link)
-        print("=" * 50)
+        print()
 
-        options = YOUTUBE_OPTIONS.copy()
+        options = YTDLP_OPTIONS.copy()
 
-        options["skip_download"] = True
+        options.update({
+            "skip_download": True
+        })
 
         with yt_dlp.YoutubeDL(
             options
@@ -265,12 +299,12 @@ def video_info():
 
                 continue
 
-            if height in [
+            if height in (
                 360,
                 480,
                 720,
                 1080
-            ]:
+            ):
 
                 qualities.add(
                     height
@@ -282,7 +316,7 @@ def video_info():
         )
 
         # -------------------------------------------------
-        # KALİTE YOKSA
+        # KALİTE BULUNAMAZSA
         # -------------------------------------------------
 
         if not qualities:
@@ -333,6 +367,12 @@ def video_info():
 
             default_quality = 360
 
+        print("Başlık:", title)
+        print("Kullanıcı:", uploader)
+        print("Süre:", duration_text)
+        print("Kaliteler:", qualities)
+        print()
+
         return jsonify({
 
             "success": True,
@@ -354,10 +394,12 @@ def video_info():
 
     except Exception as e:
 
-        print("=" * 50)
+        print()
+        print("=" * 60)
         print("VIDEO BİLGİSİ HATASI")
-        print(e)
-        print("=" * 50)
+        print("=" * 60)
+        print(str(e))
+        print()
 
         return jsonify({
 
@@ -397,6 +439,10 @@ def download():
                 400
             )
 
+        # -------------------------------------------------
+        # KALİTE
+        # -------------------------------------------------
+
         try:
 
             limit = int(kalite)
@@ -408,11 +454,29 @@ def download():
 
             limit = 720
 
+        if limit not in (
+            360,
+            480,
+            720,
+            1080
+        ):
+
+            limit = 720
+
+        print()
+        print("=" * 60)
+        print("İNDİRME BAŞLIYOR")
+        print("=" * 60)
+        print("Link:", link)
+        print("Kalite:", str(limit) + "p")
+        print("FFmpeg:", FFMPEG_PATH)
+        print()
+
         # -------------------------------------------------
         # ESKİ DOSYALARI TEMİZLE
         # -------------------------------------------------
 
-        for file in glob.glob(
+        for old_file in glob.glob(
             os.path.join(
                 TEMP_FOLDER,
                 "*"
@@ -421,16 +485,16 @@ def download():
 
             try:
 
-                if os.path.isfile(file):
+                if os.path.isfile(old_file):
 
-                    os.remove(file)
+                    os.remove(old_file)
 
             except Exception:
 
                 pass
 
         # -------------------------------------------------
-        # ÇIKTI
+        # ÇIKTI DOSYASI
         # -------------------------------------------------
 
         output = os.path.join(
@@ -458,7 +522,7 @@ def download():
         # YT-DLP
         # -------------------------------------------------
 
-        options = YOUTUBE_OPTIONS.copy()
+        options = YTDLP_OPTIONS.copy()
 
         options.update({
 
@@ -495,7 +559,7 @@ def download():
         # DOSYAYI BUL
         # -------------------------------------------------
 
-        files = [
+        downloaded_files = [
 
             file
 
@@ -510,27 +574,37 @@ def download():
 
         ]
 
-        if not files:
+        if not downloaded_files:
 
             return (
-                "Video indirildi fakat "
-                "dosya bulunamadı.",
+                "Video indirildi fakat dosya bulunamadı.",
                 500
             )
 
-        file = max(
-            files,
+        downloaded_file = max(
+            downloaded_files,
             key=os.path.getmtime
         )
 
+        print()
+        print("=" * 60)
+        print("İNDİRME BAŞARILI")
+        print(downloaded_file)
+        print("=" * 60)
+        print()
+
+        # -------------------------------------------------
+        # DOSYAYI GÖNDER
+        # -------------------------------------------------
+
         return send_file(
 
-            file,
+            downloaded_file,
 
             as_attachment=True,
 
             download_name=os.path.basename(
-                file
+                downloaded_file
             ),
 
             mimetype="video/mp4"
@@ -539,10 +613,12 @@ def download():
 
     except Exception as e:
 
-        print("=" * 50)
+        print()
+        print("=" * 60)
         print("İNDİRME HATASI")
-        print(e)
-        print("=" * 50)
+        print("=" * 60)
+        print(str(e))
+        print()
 
         return (
 
@@ -552,6 +628,32 @@ def download():
             500
 
         )
+
+
+# =========================================================
+# SAĞLIK KONTROLÜ
+# =========================================================
+
+@app.route("/health")
+def health():
+
+    return jsonify({
+        "status": "ok",
+        "service": "zdDownloader"
+    })
+
+
+# =========================================================
+# HATA SAYFASI
+# =========================================================
+
+@app.errorhandler(404)
+def page_not_found(error):
+
+    return (
+        "Sayfa bulunamadı.",
+        404
+    )
 
 
 # =========================================================
@@ -567,12 +669,19 @@ if __name__ == "__main__":
         )
     )
 
+    print()
+    print("=" * 60)
+    print("                 zdDownloader")
+    print("=" * 60)
+    print()
+    print("Port:", port)
+    print("FFmpeg:", FFMPEG_PATH or "Bulunamadı")
+    print()
+    print("http://127.0.0.1:" + str(port))
+    print()
+
     app.run(
-
         host="0.0.0.0",
-
         port=port,
-
         debug=False
-
     )
