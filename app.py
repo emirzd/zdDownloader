@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_file, jsonify
+from flask import Flask, render_template, request, send_file, jsonify, Response
 import yt_dlp
 import os
 import tempfile
@@ -8,8 +8,10 @@ import glob
 app = Flask(__name__)
 
 # =========================================================
-# GEÇİCİ KLASÖR
+# AYARLAR
 # =========================================================
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 TEMP_FOLDER = os.path.join(
     tempfile.gettempdir(),
@@ -24,18 +26,22 @@ os.makedirs(TEMP_FOLDER, exist_ok=True)
 # =========================================================
 
 def find_ffmpeg():
+
     ffmpeg = shutil.which("ffmpeg")
 
     if ffmpeg:
         return ffmpeg
 
-    project = os.path.dirname(
-        os.path.abspath(__file__)
-    )
+    for root, dirs, files in os.walk(BASE_DIR):
 
-    for root, dirs, files in os.walk(project):
-        if "ffmpeg" in files or "ffmpeg.exe" in files:
-            return root
+        for filename in files:
+
+            if filename.lower() in [
+                "ffmpeg",
+                "ffmpeg.exe"
+            ]:
+
+                return root
 
     return None
 
@@ -48,11 +54,16 @@ FFMPEG_PATH = find_ffmpeg()
 # =========================================================
 
 YOUTUBE_OPTIONS = {
+
     "noplaylist": True,
+
     "quiet": False,
+
     "no_warnings": False,
+
     "retries": 5,
-    "fragment_retries": 5,
+
+    "fragment_retries": 5
 }
 
 
@@ -62,7 +73,41 @@ YOUTUBE_OPTIONS = {
 
 @app.route("/")
 def home():
+
     return render_template("index.html")
+
+
+# =========================================================
+# GOOGLE SEARCH CONSOLE DOĞRULAMA
+# =========================================================
+
+@app.route("/googlee4bd61a0bd60b5ec.html")
+def google_verification():
+
+    verification_file = os.path.join(
+        BASE_DIR,
+        "googlee4bd61a0bd60b5ec.html"
+    )
+
+    if not os.path.isfile(verification_file):
+
+        return (
+            "Google doğrulama dosyası bulunamadı.",
+            404
+        )
+
+    with open(
+        verification_file,
+        "r",
+        encoding="utf-8"
+    ) as file:
+
+        content = file.read()
+
+    return Response(
+        content,
+        mimetype="text/html"
+    )
 
 
 # =========================================================
@@ -71,35 +116,50 @@ def home():
 
 @app.route("/robots.txt")
 def robots():
-    return (
+
+    content = (
         "User-agent: *\n"
         "Allow: /\n"
-    ), 200, {
-        "Content-Type": "text/plain; charset=utf-8"
-    }
+    )
+
+    return Response(
+        content,
+        mimetype="text/plain"
+    )
 
 
 # =========================================================
 # VIDEO BİLGİSİ
 # =========================================================
 
-@app.route("/info", methods=["POST"])
+@app.route(
+    "/info",
+    methods=["POST"]
+)
 def video_info():
 
     try:
-        data = request.get_json(silent=True)
+
+        data = request.get_json(
+            silent=True
+        )
 
         if not data:
+
             return jsonify({
                 "success": False,
                 "error": "Geçersiz istek."
             }), 400
 
         link = str(
-            data.get("link", "")
+            data.get(
+                "link",
+                ""
+            )
         ).strip()
 
         if not link:
+
             return jsonify({
                 "success": False,
                 "error": "Video linki girilmedi."
@@ -114,7 +174,10 @@ def video_info():
 
         options["skip_download"] = True
 
-        with yt_dlp.YoutubeDL(options) as ydl:
+        with yt_dlp.YoutubeDL(
+            options
+        ) as ydl:
+
             info = ydl.extract_info(
                 link,
                 download=False
@@ -147,19 +210,27 @@ def video_info():
         duration_text = ""
 
         if duration:
+
             total = int(duration)
 
             hours = total // 3600
-            minutes = (total % 3600) // 60
+
+            minutes = (
+                total % 3600
+            ) // 60
+
             seconds = total % 60
 
             if hours:
+
                 duration_text = (
                     f"{hours}:"
                     f"{minutes:02d}:"
                     f"{seconds:02d}"
                 )
+
             else:
+
                 duration_text = (
                     f"{minutes}:"
                     f"{seconds:02d}"
@@ -171,20 +242,39 @@ def video_info():
 
         qualities = set()
 
-        for fmt in info.get("formats", []):
+        for fmt in info.get(
+            "formats",
+            []
+        ):
 
-            height = fmt.get("height")
+            height = fmt.get(
+                "height"
+            )
 
             if not height:
                 continue
 
             try:
+
                 height = int(height)
-            except (ValueError, TypeError):
+
+            except (
+                ValueError,
+                TypeError
+            ):
+
                 continue
 
-            if height in [360, 480, 720, 1080]:
-                qualities.add(height)
+            if height in [
+                360,
+                480,
+                720,
+                1080
+            ]:
+
+                qualities.add(
+                    height
+                )
 
         qualities = sorted(
             qualities,
@@ -192,28 +282,39 @@ def video_info():
         )
 
         # -------------------------------------------------
-        # KALİTE BULUNAMAZSA
+        # KALİTE YOKSA
         # -------------------------------------------------
 
         if not qualities:
 
             all_heights = []
 
-            for fmt in info.get("formats", []):
+            for fmt in info.get(
+                "formats",
+                []
+            ):
 
-                height = fmt.get("height")
+                height = fmt.get(
+                    "height"
+                )
 
-                if not height:
-                    continue
+                if height:
 
-                try:
-                    all_heights.append(
-                        int(height)
-                    )
-                except (ValueError, TypeError):
-                    pass
+                    try:
+
+                        all_heights.append(
+                            int(height)
+                        )
+
+                    except (
+                        ValueError,
+                        TypeError
+                    ):
+
+                        pass
 
             if all_heights:
+
                 qualities = [
                     max(all_heights)
                 ]
@@ -223,23 +324,32 @@ def video_info():
         # -------------------------------------------------
 
         if qualities:
-            default_quality = max(qualities)
+
+            default_quality = max(
+                qualities
+            )
+
         else:
+
             default_quality = 360
 
-        print("Başlık:", title)
-        print("Süre:", duration_text)
-        print("Kaliteler:", qualities)
-        print("Başarılı")
-
         return jsonify({
+
             "success": True,
+
             "title": title,
+
             "thumbnail": thumbnail,
+
             "uploader": uploader,
+
             "duration": duration_text,
+
             "qualities": qualities,
-            "default_quality": default_quality
+
+            "default_quality":
+                default_quality
+
         })
 
     except Exception as e:
@@ -250,8 +360,11 @@ def video_info():
         print("=" * 50)
 
         return jsonify({
+
             "success": False,
+
             "error": str(e)
+
         }), 500
 
 
@@ -259,7 +372,10 @@ def video_info():
 # VIDEO İNDİR
 # =========================================================
 
-@app.route("/download", methods=["POST"])
+@app.route(
+    "/download",
+    methods=["POST"]
+)
 def download():
 
     try:
@@ -275,27 +391,22 @@ def download():
         ).strip()
 
         if not link:
+
             return (
                 "Video linki girilmedi.",
                 400
             )
 
-        if not FFMPEG_PATH:
-            return (
-                "FFmpeg bulunamadı.",
-                500
-            )
-
         try:
-            limit = int(kalite)
-        except (ValueError, TypeError):
-            limit = 720
 
-        print("=" * 50)
-        print("İNDİRME BAŞLIYOR")
-        print("Kalite:", str(limit) + "p")
-        print("FFmpeg:", FFMPEG_PATH)
-        print("=" * 50)
+            limit = int(kalite)
+
+        except (
+            ValueError,
+            TypeError
+        ):
+
+            limit = 720
 
         # -------------------------------------------------
         # ESKİ DOSYALARI TEMİZLE
@@ -311,18 +422,23 @@ def download():
             try:
 
                 if os.path.isfile(file):
+
                     os.remove(file)
 
             except Exception:
+
                 pass
 
         # -------------------------------------------------
-        # ÇIKTI DOSYASI
+        # ÇIKTI
         # -------------------------------------------------
 
         output = os.path.join(
+
             TEMP_FOLDER,
+
             "%(title)s_%(id)s.%(ext)s"
+
         )
 
         # -------------------------------------------------
@@ -330,10 +446,12 @@ def download():
         # -------------------------------------------------
 
         format_secimi = (
+
             f"bestvideo[height<={limit}]"
             f"+bestaudio/"
             f"best[height<={limit}]/"
             "best"
+
         )
 
         # -------------------------------------------------
@@ -343,37 +461,57 @@ def download():
         options = YOUTUBE_OPTIONS.copy()
 
         options.update({
-            "format": format_secimi,
-            "outtmpl": output,
-            "merge_output_format": "mp4"
+
+            "format":
+                format_secimi,
+
+            "outtmpl":
+                output,
+
+            "merge_output_format":
+                "mp4"
+
         })
 
         if FFMPEG_PATH:
-            options["ffmpeg_location"] = FFMPEG_PATH
+
+            options[
+                "ffmpeg_location"
+            ] = FFMPEG_PATH
 
         # -------------------------------------------------
         # İNDİR
         # -------------------------------------------------
 
-        with yt_dlp.YoutubeDL(options) as ydl:
-            ydl.download([link])
+        with yt_dlp.YoutubeDL(
+            options
+        ) as ydl:
+
+            ydl.download([
+                link
+            ])
 
         # -------------------------------------------------
         # DOSYAYI BUL
         # -------------------------------------------------
 
         files = [
+
             file
+
             for file in glob.glob(
                 os.path.join(
                     TEMP_FOLDER,
                     "*"
                 )
             )
+
             if os.path.isfile(file)
+
         ]
 
         if not files:
+
             return (
                 "Video indirildi fakat "
                 "dosya bulunamadı.",
@@ -385,16 +523,18 @@ def download():
             key=os.path.getmtime
         )
 
-        print("=" * 50)
-        print("İNDİRME BAŞARILI")
-        print(file)
-        print("=" * 50)
-
         return send_file(
+
             file,
+
             as_attachment=True,
-            download_name=os.path.basename(file),
+
+            download_name=os.path.basename(
+                file
+            ),
+
             mimetype="video/mp4"
+
         )
 
     except Exception as e:
@@ -405,9 +545,12 @@ def download():
         print("=" * 50)
 
         return (
+
             "İndirme sırasında hata oluştu:\n\n"
             + str(e),
+
             500
+
         )
 
 
@@ -417,27 +560,6 @@ def download():
 
 if __name__ == "__main__":
 
-    print("=" * 50)
-    print("zdDownloader")
-    print("=" * 50)
-
-    print(
-        "Python:",
-        os.sys.executable
-    )
-
-    print(
-        "yt-dlp:",
-        yt_dlp.__file__
-    )
-
-    print(
-        "FFmpeg:",
-        FFMPEG_PATH
-        if FFMPEG_PATH
-        else "BULUNAMADI"
-    )
-
     port = int(
         os.environ.get(
             "PORT",
@@ -446,7 +568,11 @@ if __name__ == "__main__":
     )
 
     app.run(
+
         host="0.0.0.0",
+
         port=port,
+
         debug=False
+
     )
